@@ -1,0 +1,70 @@
+########################## COMMANDS FOR MAGMA gene-set analysis #########################
+
+################ conditional gene-set analysis ######
+
+#Download magma.genes.raw from FUMA
+
+#magma executable magmav1.08
+#magma_GS.txt are the gene-sets from FUMA
+#gtex_v8_ts_avg_log2TPM.txt are the tissue gene-sets from FUMA
+
+
+#list.txt is a file with the names of the significant genesets
+#list.txt
+GO_bp:go_regulation_of_aspartic_type_endopeptidase_activity_involved_in_amyloid_precursor_protein_catabolic_process
+GO_bp:go_regulation_of_aspartic_type_peptidase_activity
+GO_cc:go_neurofibrillary_tangle
+Curated_gene_sets:roversi_glioma_copy_number_up
+GO_bp:go_regulation_of_amyloid_precursor_protein_catabolic_process
+GO_bp:go_positive_regulation_of_amyloid_precursor_protein_catabolic_process
+GO_bp:go_positive_regulation_of_aspartic_type_peptidase_activity
+GO_bp:go_negative_regulation_of_amyloid_precursor_protein_catabolic_process
+GO_bp:go_regulation_of_amyloid_beta_formation
+GO_bp:go_amyloid_precursor_protein_catabolic_process
+GO_bp:go_immune_response_regulating_cell_surface_receptor_signaling_pathway
+
+#### forward selection
+#1 condition on the most significant geneset
+magma --gene-results magma.genes.raw --set-annot magma_GS.txt --out co1 --model analyse=file,list.txt condition=GO_bp:go_regulation_of_aspartic_type_endopeptidase_activity_involved_in_amyloid_precursor_protein_catabolic_process
+
+#2 select the next most significant gene-set and previous ones
+magma --gene-results magma.genes.raw --set-annot magma_GS.txt --out co2 --model analyse=file,list.txt condition=GO_bp:go_regulation_of_aspartic_type_endopeptidase_activity_involved_in_amyloid_precursor_protein_catabolic_process,Curated_gene_sets:roversi_glioma_copy_number_up
+
+#3
+magma --gene-results magma.genes.raw --set-annot magma_GS.txt --out co3 --model analyse=file,list.txt condition=GO_bp:go_regulation_of_aspartic_type_endopeptidase_activity_involved_in_amyloid_precursor_protein_catabolic_process,Curated_gene_sets:roversi_glioma_copy_number_up,GO_cc:go_neurofibrillary_tangle
+
+#4
+magma --gene-results magma.genes.raw --set-annot magma_GS.txt --out co4 --model analyse=file,list.txt condition=GO_bp:go_regulation_of_aspartic_type_endopeptidase_activity_involved_in_amyloid_precursor_protein_catabolic_process,Curated_gene_sets:roversi_glioma_copy_number_up,GO_cc:go_neurofibrillary_tangle,GO_bp:go_immune_response_regulating_cell_surface_receptor_signaling_pathway
+
+ 
+
+################ tissue conditional analysis ############################
+#/home/douglasw/Neurodegen/commonFactor/MAGMA/ConditionalAnalysis/
+
+#GTEx detailed gene-set from FUMA: gtex_v8_ts_avg_log2TPM.txt
+
+
+#list.txt is a file with the names of the significant genesets
+#list1.txt
+Brain_Nucleus_accumbens_basal_ganglia
+Brain_Cortex
+Brain_Caudate_basal_ganglia
+Brain_Cerebellum
+Brain_Putamen_basal_ganglia
+Brain_Hippocampus
+Brain_Cerebellar_Hemisphere
+Brain_Frontal_Cortex_BA9
+Brain_Anterior_cingulate_cortex_BA24
+Brain_Amygdala
+
+#### forward selection
+#1 condition on the most significant geneset
+magma --gene-results magma.genes.raw --gene-covar gtex_v8_ts_avg_log2TPM.txt --out tico1 --model analyse=file,list1.txt direction=greater condition-hide=Average, Brain_Nucleus_accumbens_basal_ganglia
+
+
+
+
+
+
+
+

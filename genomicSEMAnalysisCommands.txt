@@ -1,0 +1,65 @@
+########################## COMMANDS FOR GENOMICSEM ANALYSIS #########################
+
+#genomicSEM.R
+library(devtools)
+install_github("GenomicSEM/GenomicSEM")
+require(GenomicSEM)
+
+#Munge sumstats
+#sumstat files have the following columns
+#"SNP","CHR","POS","rsID","A1","A2","P","AF","BETA","SE","N"
+#N is Effective N
+#w_hm3.snplist from https://utexas.app.box.com/s/vkd36n197m8klbaio3yzoxsee6sxo11v
+#all variants in sumstats have MAF>=0.01
+munge("LBDhg19rsID.txt", hm3 = "w_hm3.snplist", trait.names="LBD", N=eff)
+munge("PDhg19rsID.txt", hm3 = "w_hm3.snplist", trait.names="PD")
+munge("ADhg19rsID.txt", hm3 = "w_hm3.snplist", trait.names="AD")
+munge("ALShg19rsID.txt", hm3 = "w_hm3.snplist", trait.names="ALS")
+
+#run multivariate LDSC
+traits <- c("AD.sumstats.gz", "ALS.sumstats.gz", "LBD.sumstats.gz", "PD.sumstats.gz")
+sample.prev <- c(.5,.5,.5,.5)
+population.prev <- c(.05,.0000625,.001,.005)
+ld <- "/home/LDSCfiles/eur_w_ld_chr/"
+wld <- "/home/LDSCfiles/eur_w_ld_chr/"
+trait.names<-c("AD","ALS","LBD","PD")
+LDSCoutput <- ldsc(traits=traits, sample.prev=sample.prev, population.prev=population.prev, ld=ld, wld=wld, trait.names=trait.names)
+
+#Prep sumstats
+#reference.1000G.maf.0.005.txt.gz from https://utexas.app.box.com/s/vkd36n197m8klbaio3yzoxsee6sxo11v
+files=c("ADhg19rsID.txt.gz","ALShg19rsID.txt.gz","LBDhg19rsID.txt.gz","PDhg19rsID.txt.gz")
+ref="reference.1000G.maf.0.005.txt.gz"
+trait.names=c("AD","ALS","LBD","PD")
+se.logit=c(T,T,T,T,T)
+info.filter=.8
+maf.filter=0.01
+p_sumstats <-sumstats(files=files,ref=ref,trait.names=trait.names,se.logit=se.logit,OLS=NULL,linprob=NULL,N=NULL,betas=NULL,info.filter=info.filter,maf.filter=maf.filter,keep.indel=FALSE,parallel=FALSE,cores=NULL)
+
+#find model fit
+commonfactor.model<-'F1=~ NA*AD + ALS + LBD + PD
+F1~~1*F1
+LBD ~~ 0*LBD'
+concom<-usermodel(covstruc = LDSCoutput, estimation = "DWLS", model = commonfactor.model, CFIcalc = TRUE, std.lv = FALSE, imp_cov = FALSE)
+
+#run common factor model on SNPs
+commonfactor.model<-'F1=~ NA*AD + ALS + LBD + PD
+F1~~1*F1
+LBD ~~ 0*LBD
+F1~SNP'
+tmpcf<-userGWAS(covstruc=LDSCoutput, SNPs=p_sumstats, estimation="DWLS", model=commonfactor.model, printwarn=TRUE, sub=c("F1~SNP"), cores=NULL, toler=FALSE, SNPSE=FALSE, parallel=FALSE, GC="standard", MPI=FALSE, smooth_check=TRUE)
+#this step was run in chunks of 50k variants with 10 analyses in parallel of 5k variants.
+
+#inflation was calculated on the combined summary statistics using this function
+a<-tmpcf[[1]]
+chisq <- qchisq(1-a$Pval_Estimate,1)
+lambda = median(chisq)/qchisq(0.5,1)
+lambda 
+############################################################
+
+
+
+
+
+
+
+

@@ -1,0 +1,79 @@
+########################## COMMANDS FOR conjFDR analysis #########################
+
+
+#####Prep summary statistics
+for PHENO in PD ALS DLB; do
+	python3 /home/python_convert-master/sumstats.py csv --auto --sumstats /home/${PHENO}locus.txt.gz --out /home/${PHENO}locus.sumstats.csv --force
+	python3 /home/python_convert-master/sumstats.py zscore --sumstats /home/${PHENO}locus.sumstats.csv --out /home/${PHENO}locus_zscore.sumstats.csv --force
+	python3 /home/python_convert-master/sumstats.py mat --sumstats /home/${PHENO}locus_zscore.sumstats.csv --ref /home/conjfdr_ref/9545380.ref.gz --out /home/${PHENO}_PleioFDR.sumstats.mat --force
+done
+
+
+##### Run conjFDR
+module load matlab/R2018a
+module load plink/1.90b6.2
+
+
+python_convert=/home/python_convert-master/
+
+#reading trait1
+trait1f=/home/traitFolder/trait1/
+trait1n=$(ls $trait1f)
+
+# 1st for loop starts here
+for t1 in $trait1n
+do
+trait1nb=$(basename "$t1")
+IFS='_' read -r -a trait1_array <<< "$trait1nb"
+trait1name=${trait1_array[1]}
+
+
+# reading trait2
+trait2f=/home/traitFolder/trait2/
+trait2n=$(ls $trait2f)
+
+# 2nd loop starts here
+for t2 in $trait2n
+
+do
+trait2nb=$(basename "$t2")
+IFS='_' read -r -a trait2_array <<< "$trait2nb"
+trait2name=${trait2_array[1]}
+
+# Output directory
+conj_out="/home/results/results_"$trait1name"_"$trait2name"_conjfdr"
+# Replace the variables
+sed -i -e "/traitfolder=/c\traitfolder=/home/traitFolder"\
+    -i -e "/traitfile1=/c\traitfile1="/trait1/"$trait1nb" \
+    -i -e "/traitname1=/c\traitname1=$trait1name"\
+    -i -e "/traitfiles=/c\traitfiles={\'/trait2/$trait2nb\'}"\
+    -i -e "/traitnames=/c\traitnames={\'$trait2name\'}" /home/pleiofdr-master/config.txt
+
+# variable change for cnj_fdr 
+sed -i -e "/outputdir=/c\outputdir=$conj_out/"\
+    -i -e "/stattype=/c\stattype=conjfdr"\
+    -i -e "/fdrthresh=/c\fdrthresh=0.05"\
+    -i -e "/randprune_n=/c\randprune_n=500" /home/pleiofdr-master/config.txt
+
+# Run Matlab now for conj_FDR
+matlab -nodesktop -r "run runme.m; exit"
+
+if [  -d  $conj_out  ]; then
+
+source /home/bin/activate
+
+cd $conj_out
+python3 $python_convert/fdrmat2csv.py --mat result.mat --ref /home/conjfdr_ref/9545380.ref.gz
+# clump
+python3 $python_convert/sumstats.py clump \
+	--clump-field FDR \
+	--force \
+	--sumstats result.mat.csv \
+	--bfile-chr /home/conjfdr_ref/chr@ \
+	--exclude-ranges '6:25119106-33854733' '8:7200000-12500000' '17:40000000-47000000' '19:42000000-47000000' \
+	--clump-p1 0.05 \
+	--out "results_${trait1name}_${trait2name}_conjFDR_clump" 
+
+cd ../
+done
+done

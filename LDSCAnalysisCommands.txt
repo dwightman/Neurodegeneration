@@ -1,0 +1,127 @@
+########################## COMMANDS FOR LDSC analysis #########################
+
+module load Python/2.7.18-GCCcore-9.3.0
+
+###### munge Datasets
+#AD
+munge_sumstats.py --out AD --sumstats ADhg19rsID.txt.gz --N-col N --snp rsID --a1 A1 --a2 A2 --p P --frq AF --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#ALS
+munge_sumstats.py --out ALS --sumstats ALShg19rsID.txt.gz --N-col N --snp rsID --a1 A1 --a2 A2 --p P --frq AF --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#LBD
+munge_sumstats.py --out LBD --sumstats LBDhg19rsID.txt.gz --N 6306.411 --snp rsID --a1 A1 --a2 A2 --p P --frq AF --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#PD
+munge_sumstats.py --out PD --sumstats PDhg19rsID.txt.gz --N 1582.242 --snp rsID --a1 A1 --a2 A2 --p P --frq AF --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#cf
+munge_sumstats.py --out CF --sumstats CommonFactorallResQC.txt.gz --N 362647.1 --snp rsID --a1 A1 --a2 A2 --p Pval_Estimate --signed-sumstats Z_Estimate,0 --frq MAF --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+
+
+##### heritability estimates
+#h2
+ldsc.py --h2 AD.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out ADh2 --samp-prev 0.5 --pop-prev 0.05
+
+ldsc.py --h2 ALS.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out ALSh2 --samp-prev 0.5 --pop-prev 0.0000625
+
+ldsc.py --h2 LBD.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out LBDh2 --samp-prev 0.5 --pop-prev 0.01
+
+ldsc.py --h2 PD.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out PDh2 --samp-prev 0.5 --pop-prev 0.005
+
+
+###### genetic correlation estimates
+ldsc.py --rg AD.sumstats.gz,ALS.sumstats.gz,LBD.sumstats.gz,PD.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out ADvrest --samp-prev 0.5,0.5,0.5,0.5 --pop-prev 0.05,0.0000625,0.01,0.005
+
+ldsc.py --rg ALS.sumstats.gz,LBD.sumstats.gz,PD.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out ALSvrest --samp-prev 0.5,0.5,0.5 --pop-prev 0.0000625,0.01,0.005
+
+ldsc.py --rg LBD.sumstats.gz,PD.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out LBDvrest --samp-prev 0.5,0.5 --pop-prev 0.01,0.005
+
+
+
+#APOE removed LDSC analyses were performed after removing all variants between 19:40000000 -50000000 (GRCh37)
+
+
+
+#### Comparing other AD datasets to ALS, LBD, and PD #######################
+#Get summary statistics from Wightman et al. 2021
+wget https://ctg.cncr.nl/documents/p1651/PGCALZ2sumstatsExcluding23andMe.txt.gz
+
+#### get Kunkle et al. 2019 summary statistics https://www.niagads.org/datasets/ng00075
+
+#### get Jansen et al. 2019 summary statistics
+wget https://ctg.cncr.nl/documents/p1651/AD_sumstats_Jansenetal_2019sept.txt.gz
+
+#get Bellenguez et al. 2022 summary statistics
+wget http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90027001-GCST90028000/GCST90027158/harmonised/35379992-GCST90027158-MONDO_0004975-Build38.f.tsv.gz
+
+#get Marioni et al. 2018 summary statistics
+#paternal
+wget http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST005001-GCST006000/GCST005920/harmonised/29777097-GCST005920-EFO_0009268.h.tsv.gz
+mv 29777097-GCST005920-EFO_0009268.h.tsv.gz MarioniPaternal.txt.gz
+
+#maternal
+wget  http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST005001-GCST006000/GCST005923/harmonised/29777097-GCST005923-EFO_0009268.h.tsv.gz 
+mv 29777097-GCST005923-EFO_0009268.h.tsv.gz  MarioniMaternal.txt.gz
+
+
+#Calculate effective N for all datasets
+
+#munge
+#Marioni Paternal
+munge_sumstats.py --out MarioniPaternal --sumstats MarioniPaternal.txt1 --N 13548.162 --snp variant_id --a1 effect_allele --a2 other_allele --p p_value --signed-sumstats beta,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#Marioni Mat
+munge_sumstats.py --out MarioniMaternal --sumstats MarioniMaternal.txt1 --N 25038.80503 --snp variant_id --a1 effect_allele --a2 other_allele --p p_value --signed-sumstats beta,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#Jansen et al. 2019 UKB data
+munge_sumstats.py --out UKBJansen --sumstats ukb_alz_wt_sumstats.txt1 --N 40657.90017 --snp SNPID_UKB --a1 A1 --a2 A2 --p P --frq MAF --signed-sumstats BETA,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#IGAP
+munge_sumstats.py --out IGAP --sumstats Kunkle_etal_2019_IGAP_Summary_statistics.with_allelefreqs.txt --N 57693 --snp rsID --a1 Effect_allele --a2 Non_Effect_allele --p Pvalue --frq Effect_allele_freq --signed-sumstats Beta,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#Jansen
+munge_sumstats.py --out Jansen --sumstats AD_sumstats_Jansenetal_2019sept.txt --N 104401.103 --snp SNP --a1 A1 --a2 A2 --p P --frq EAF --signed-sumstats BETA,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#PGCALZnoUKB
+munge_sumstats.py --out PGCALZ2noUKB --sumstats ADhg19rsID.txt --N-col N --snp rsID --a1 A1 --a2 A2 --p P --frq AF --signed-sumstats BETA,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#PGCALZ
+munge_sumstats.py --out PGCALZ2 --sumstats PGCALZ2.txt --N 155741.2745 --snp rsID --a1 testedAllele --a2 otherAllele --p p --signed-sumstats z,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+#Bellenguez
+munge_sumstats.py --out Bellenguez --sumstats 35379992-GCST90027158-MONDO_0004975-Build38.f.tsv --N 124790 --snp variant_id --a1 effect_allele --a2 other_allele --p p_value --frq effect_allele_frequency --signed-sumstats beta,0 --merge-alleles /home/LDSC_reffiles/w_hm3.snplist
+
+
+#h2
+ldsc.py --h2 IGAP.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out IGAPh2 --samp-prev 0.5 --pop-prev 0.043
+
+ldsc.py --h2 Jansen.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out Jansenh2 --samp-prev 0.5 --pop-prev 0.043
+
+ldsc.py --h2 PGCALZ2noUKB.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out PGCALZ2noUKBh2 --samp-prev 0.5 --pop-prev 0.043
+
+ldsc.py --h2 PGCALZ2.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out PGCALZ2h2 --samp-prev 0.5 --pop-prev 0.043
+
+ldsc.py --h2 Bellenguez.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out PGCALZ2noUKBh2 --samp-prev 0.5 --pop-prev 0.043
+
+ldsc.py --h2 MarioniPaternal.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out PGCALZ2noUKBh2 --samp-prev 0.5 --pop-prev 0.043
+
+ldsc.py --h2 MarioniMaternal.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out PGCALZ2noUKBh2 --samp-prev 0.5 --pop-prev 0.043
+
+ldsc.py --h2 UKBJansen.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out PGCALZ2noUKBh2 --samp-prev 0.5 --pop-prev 0.043
+
+
+#genetic correlation
+#PD
+ldsc.py --rg PD.sumstats.gz,Jansen.sumstats.gz,IGAP.sumstats.gz,PGCALZ2noUKB.sumstats.gz,PGCALZ2.sumstats.gz,Bellenguez.sumstats.gz,MarioniPaternal.sumstats.gz,MarioniMaternal.sumstats.gz,UKBJansen.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out ADvrest --samp-prev 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5 --pop-prev 0.005,0.043,0.043,0.043,0.043,0.043,0.043,0.043,0.043
+
+#ALS
+ldsc.py --rg ALS.sumstats.gz,Jansen.sumstats.gz,IGAP.sumstats.gz,PGCALZ2noUKB.sumstats.gz,PGCALZ2.sumstats.gz,Bellenguez.sumstats.gz,MarioniPaternal.sumstats.gz,MarioniMaternal.sumstats.gz,UKBJansen.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out ADvrest --samp-prev 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5 --pop-prev 0.0000625,0.043,0.043,0.043,0.043,0.043,0.043,0.043,0.043
+
+#LBD
+ldsc.py --rg LBD.sumstats.gz,Jansen.sumstats.gz,IGAP.sumstats.gz,PGCALZ2noUKB.sumstats.gz,PGCALZ2.sumstats.gz,Bellenguez.sumstats.gz,MarioniPaternal.sumstats.gz,MarioniMaternal.sumstats.gz,UKBJansen.sumstats.gz --ref-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --w-ld-chr /home/LDSCfiles/eur_w_ld_chr/ --out ADvrest --samp-prev 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5 --pop-prev 0.01,0.043,0.043,0.043,0.043,0.043,0.043,0.043,0.043
+
+
+
+

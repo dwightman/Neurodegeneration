@@ -1,0 +1,177 @@
+########################## COMMANDS FOR LAVA analysis #########################
+
+#get sample overlap info from gcov_int from LDSC analysis
+#sampleoverlap.txt
+AD ALS LBD PD
+AD 1 -0.0020 0.0217 -0.0025
+ALS -0.0020 1 -0.0109 0.0127
+LBD 0.0217 -0.0109 1 0.0123
+PD -0.0025 0.0127 0.0123 1
+
+#use Neff/2 for cases and controls
+#N in files is effective N (Neff)
+#inputinfo.txt
+phenotype	cases	controls	filename
+AD	56944	56944	ADhg19rsID.txt.gz
+ALS	40357	40357	ALShg19rsID.txt.gz
+LBD	3153	3153	LBDhg19rsID.txt.gz
+PD	62650	62650	PDhg19rsID.txt.gz
+
+#use R/3.5.1-intel-2019b 
+
+#LAVA.R
+library("BiocManager")
+BiocManager::install("snpStats")
+library(devtools)
+devtools::install_git("https://github.com/josefin-werme/LAVA.git")
+library(snpStats)
+library(LAVA)
+library(parallel)
+#Running LAVA version 0.0.7
+#0dd05b6 git commit
+
+#Process data
+#reference file from MAGMA https://ctg.cncr.nl/software/MAGMA/ref_data/g1000_eur.zip
+input = process.input(input.info.file="inputinfo.txt", sample.overlap.file="sampleoverlap.txt", ref.prefix="/home/magma_resources/g1000_eur",phenos=c("AD","ALS","LBD","PD"))
+
+#read in loci
+#gsemCFloci.txt are from FUMA suggestive loci (see supplementary Table 3)
+loci = read.loci("gsemCFloci.txt")
+n.loc = nrow(loci)
+
+#analyse
+u = b = list()
+out = lapply(1:n.loc, function(i) {
+	# process locus
+	locus = process.locus(loci[i,], input)
+	if (!is.null(locus)) {
+		loc.info = data.frame(locus = locus$id, chr = locus$chr, start = locus$start, stop = locus$stop, n.snps = locus$n.snps, n.pcs = locus$K)
+
+		# run univ & bivar analysis functions & store results
+		ub = run.univ.bivar(locus)
+		u = cbind(loc.info, ub$univ)
+		if (!is.null(ub$bivar)) {
+			b = cbind(loc.info, ub$bivar)
+		}
+	}
+	return(list(univ=u, bivar=b))
+})
+
+#Save output
+univ<-do.call(rbind, lapply(out,"[[","univ"))
+bivar<-do.call(rbind, lapply(out, "[[", "bivar"))
+library(data.table)
+fwrite(univ, file="univariateresults.txt", col.names=T, row.names=F, na=NA, quote=F)
+fwrite(bivar, file="bivariateresults.txt", col.names=T, row.names=F, na=NA, quote=F)
+
+#run partial correlation analysis 
+locus = process.locus(loci[1,], input)
+run.pcor(locus, target=c("ALS","PD"), phenos='LBD')
+run.pcor(locus, target=c("ALS","LBD"), phenos='PD')
+run.pcor(locus, target=c("PD","LBD"), phenos='ALS')
+
+locus = process.locus(loci[3,], input)
+run.pcor(locus, target=c("AD","PD"), phenos='ALS')
+run.pcor(locus, target=c("PD","ALS"), phenos='AD')
+run.pcor(locus, target=c("AD","ALS"), phenos='PD')
+########################################################################
+
+
+
+######## eQTL partial correlation ###############################
+#download eQTL files from eQTL catalogue, all brain tissue dataset https://www.ebi.ac.uk/eqtl/
+#trim to TMEM175 region (4:822968-1036991 in GRCh38) then liftover to GRCh37
+#annotate with rsID
+#remove variants with MAF<0.01
+#split file so all eQTLs in a file are for a single gene
+#Run LAVA to find eQTL files with Bonferroni corrected significant univariate h2 in the TMEM175 region
+
+#LAVAeQTL.R
+library(LAVA)
+input = process.input(input.info.file="inputinfo.txt", sample.overlap.file=NULL, ref.prefix="/home/magma_resources/g1000_eur")
+loci = read.loci("TMEM175locus.txt")
+n.loc = nrow(loci)
+locus = process.locus(loci[1,], input)
+loc.info = data.frame(locus = locus$id, chr = locus$chr, start = locus$start, stop = locus$stop, n.snps = locus$n.snps, n.pcs = locus$K)
+# run univ & bivar analysis functions & store results
+ub = run.univ(locus)
+ub
+fwrite(ub, file="eQTLcatalogueUnivariate.txt", col.names=T, row.names=F, na=NA, quote=F, sep=" ")
+ub = run.univ.bivar(locus)
+if (!is.null(ub$bivar)) {
+	ub$bivar
+	b = cbind(loc.info, ub$bivar)
+	fwrite(b, file="eQTLcatalogueBivariate.txt", col.names=T, row.names=F, na=NA, quote=F, sep=" ")
+}
+#Run partial correlation analysis
+run.pcor(locus, target=c("ALS","PD"), phenos='ENSG00000145217_TMEM175_GTEx_ge_brain_hippocampus')
+#########################
+
+
+
+
+
+################ Local genetic correlation between LBD and other AD datasets ###########
+#run all default loci from here https://github.com/josefin-werme/LAVA/blob/main/support_data/blocks_s2500_m25_f1_w200.GRCh37_hg19.locfile
+mv blocks_s2500_m25_f1_w200.GRCh37_hg19.locfile default.loci
+
+#sampleoverlap.txt
+LBD Jansen IGAP PGCALZ2noUKB PGCALZ2 Bellenguez 
+LBD 1 0.0251 0.0342 0.0217 0.0192 0.0124
+Jansen 0.0251 1 0.3312 0.3102 0.8237 0.4573
+IGAP 0.0342 0.3312 1 0.7621 0.3697 0.2093
+PGCALZ2noUKB 0.0217 0.3102 0.7621 1 0.7057 0.2675
+PGCALZ2 0.0192 0.8237 0.3697 0.7057 1 0.4465
+Bellenguez 0.0124 0.4573 0.2093 0.2675 0.4465 1
+
+
+#inputinfo.txt
+phenotype	cases	controls	filename
+LBD	3153	3153	LBDhg19rsID.txt.gz
+Jansen	52201	52201	Jansen.txt.gz
+IGAP	28847	28847	IGAP.txt.gz
+PGCALZ2noUKB	57542	57542	ADhg19rsID.txt.gz
+PGCALZ2	77871	77871	PGCALZ2.txt.gz
+Bellenguez	62395	62395	Bellenguez.txt.gz
+
+#LAVA_LBD.R
+#usage Rscript.R LAVA.R LBD Jansen 1
+#parellelise so 8 chunks of 312 are run at once
+#only look at pairwise analyses
+args = commandArgs(trailingOnly=TRUE)
+library(LAVA)
+library(parallel)
+input = process.input(input.info.file="inputinfo.txt", sample.overlap.file="sampleoverlap.txt", ref.prefix="/home/magma_resources/g1000_eur",phenos=c(args[1],args[2]))
+loci = read.loci("default.loci")
+n.loc = nrow(loci)
+start<-(312*as.numeric(args[3]))-311
+end<-(312*as.numeric(args[3]))
+
+u = b = list()
+out = lapply(start:end, function(i) {
+	# process locus
+	locus = process.locus(loci[i,], input)
+	if (!is.null(locus)) {
+		loc.info = data.frame(locus = locus$id, chr = locus$chr, start = locus$start, stop = locus$stop, n.snps = locus$n.snps, n.pcs = locus$K)
+
+		# run univ & bivar analysis functions & store results
+		ub = run.univ.bivar(locus)
+		u = cbind(loc.info, ub$univ)
+		if (!is.null(ub$bivar)) {
+			b = cbind(loc.info, ub$bivar)
+		}
+	}
+	return(list(univ=u, bivar=b))
+})
+
+saveRDS(out, file="LAVA.RData")
+univ<-do.call(rbind, lapply(out,"[[","univ"))
+bivar<-do.call(rbind, lapply(out, "[[", "bivar"))
+
+library(data.table)
+fwrite(univ, file=paste(args[3],args[1],args[2],"univariateresults.txt",sep="_"), col.names=T, row.names=F, na=NA, quote=F)
+fwrite(bivar, file=paste(args[3],args[1],args[2],"bivariateresults.txt",sep="_"), col.names=T, row.names=F, na=NA, quote=F)
+#############################################################
+
+
+
